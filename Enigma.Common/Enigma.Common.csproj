@@ -4,8 +4,4 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Enigma.DAL\Enigma.DAL.csproj" />
-  </ItemGroup>
-
 </Project>

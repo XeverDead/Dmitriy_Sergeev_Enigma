@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Enigma.DAL\Enigma.DAL.csproj" />
+    <ProjectReference Include="..\Enigma.Common\Enigma.Common.csproj" />
   </ItemGroup>
 
 </Project>
