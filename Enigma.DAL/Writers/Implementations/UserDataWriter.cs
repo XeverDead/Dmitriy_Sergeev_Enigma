@@ -12,7 +12,6 @@ namespace Enigma.DAL.Writers.Implementations
             {
                 binaryWriter.Write(data.Login);
                 binaryWriter.Write(data.Password);
-                binaryWriter.Write(data.Nickname);
             }
         }
     }

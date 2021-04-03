@@ -14,7 +14,6 @@ namespace Enigma.DAL.Readers.Implementations
             {
                 credentials.Login = binaryReader.ReadString();
                 credentials.Password = binaryReader.ReadString();
-                credentials.Nickname = binaryReader.ReadString();
             }
 
             return credentials;
