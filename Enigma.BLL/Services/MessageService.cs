@@ -17,24 +17,9 @@ namespace Enigma.BLL.Services
 
         public MessageService(IReader<Message> messageReader, IWriter<Message> messageWriter, IReader<Dictionary<long, string>> userListReader)
         {
-            if (messageReader is null)
-            {
-                throw new ArgumentNullException(nameof(messageReader));
-            }
-
-            if (messageWriter is null)
-            {
-                throw new ArgumentNullException(nameof(messageWriter));
-            }
-
-            if (userListReader is null)
-            {
-                throw new ArgumentNullException(nameof(userListReader));
-            }
-
-            _messageReader = messageReader;
-            _messageWriter = messageWriter;
-            _userListReader = userListReader;
+            _messageReader = messageReader ?? throw new ArgumentNullException(nameof(messageReader));
+            _messageWriter = messageWriter ?? throw new ArgumentNullException(nameof(messageWriter));
+            _userListReader = userListReader ?? throw new ArgumentNullException(nameof(userListReader));
         }
 
         public IEnumerable<Message> GetDialogMessages(long user1Id, long user2Id)
@@ -59,7 +44,7 @@ namespace Enigma.BLL.Services
             messages.AddRange(GetUserToUserMessages(user1MessagesDirectory, user1Id, user2Id));
             messages.AddRange(GetUserToUserMessages(user2MessagesDirectory, user2Id, user1Id));
 
-            messages.Sort(new Comparison<Message>(MessagesComparer));
+            messages.Sort(new Comparison<Message>(MessagesDateComparer));
 
             return messages;
         }
@@ -112,7 +97,7 @@ namespace Enigma.BLL.Services
             return messages;
         }
 
-        private int MessagesComparer(Message message1, Message message2)
+        private int MessagesDateComparer(Message message1, Message message2)
         {
             if (message1.Date > message2.Date)
             {
