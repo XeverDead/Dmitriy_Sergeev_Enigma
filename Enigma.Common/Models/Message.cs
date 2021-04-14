@@ -2,7 +2,7 @@
 
 namespace Enigma.Common.Models
 {
-    public class Message
+    public class Message : ICloneable
     {
         public long Id { get; set; }
 
@@ -13,5 +13,10 @@ namespace Enigma.Common.Models
         public long ReceiverId { get; set; }
 
         public DateTime Date { get; set; }
+
+        public object Clone()
+        {
+            return this.MemberwiseClone();
+        }
     }
 }

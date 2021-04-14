@@ -1,5 +1,6 @@
 ﻿namespace Enigma.Common.Settings
 {
+    // Will be moved to settings file later.
     public static class EnigmaSettings
     {
         public const string MainDirectory = "D:\\web";

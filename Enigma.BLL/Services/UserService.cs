@@ -5,37 +5,43 @@ using Enigma.DAL.Writers.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Enigma.BLL.Services
 {
     public class UserService
     {
-        private readonly IReader<UserCredentials> _userdataReader;
-        private readonly IWriter<UserCredentials> _userDataWriter;
+        private readonly IReader<UserCredentials> userDataReader;
+        private readonly IWriter<UserCredentials> userDataWriter;
 
-        private readonly IReader<Dictionary<long, string>> _userListReader;
-        private readonly IWriter<KeyValuePair<long, string>> _userListWriter;
+        private readonly IReader<Dictionary<long, string>> userListReader;
+        private readonly IWriter<KeyValuePair<long, string>> userListWriter;
 
-        public UserService(IReader<UserCredentials> userdataReader, IWriter<UserCredentials> userDataWriter, IReader<Dictionary<long, string>> userListReader, IWriter<KeyValuePair<long, string>> userListWriter)
+        public UserService(IReader<UserCredentials> userDataReader, 
+            IWriter<UserCredentials> userDataWriter, 
+            IReader<Dictionary<long, string>> userListReader, 
+            IWriter<KeyValuePair<long, string>> userListWriter)
         {
-            _userdataReader = userdataReader ?? throw new ArgumentNullException(nameof(userdataReader));
-            _userDataWriter = userDataWriter ?? throw new ArgumentNullException(nameof(userDataWriter));
-            _userListReader = userListReader ?? throw new ArgumentNullException(nameof(userListReader));
-            _userListWriter = userListWriter ?? throw new ArgumentNullException(nameof(userListWriter));
+            this.userDataReader = userDataReader ?? throw new ArgumentNullException(nameof(userDataReader));
+            this.userDataWriter = userDataWriter ?? throw new ArgumentNullException(nameof(userDataWriter));
+            this.userListReader = userListReader ?? throw new ArgumentNullException(nameof(userListReader));
+            this.userListWriter = userListWriter ?? throw new ArgumentNullException(nameof(userListWriter));
         }
 
-        public bool AddUser(UserCredentials userData)
+        public bool TryAddUser(UserCredentials userData)
         {
-            var isLoginTaken = _userListReader.Read(EnigmaSettings.UserListPath).ContainsValue(userData.Login);
+            var isLoginTaken = userListReader.Read(EnigmaSettings.UserListPath).ContainsValue(userData.Login);
 
             if (!isLoginTaken)
             {
-                var pair = new KeyValuePair<long, string>(userData.UserId, userData.Login);
+                var userId = GenerateId(userData);
 
-                _userListWriter.Write(EnigmaSettings.UserListPath, pair);
+                var pair = new KeyValuePair<long, string>(userId, userData.Login);
 
-                var userDirectoryPath = Path.Combine(EnigmaSettings.MainDirectory, userData.UserId.ToString());
+                userListWriter.Write(EnigmaSettings.UserListPath, pair);
+
+                var userDirectoryPath = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString());
 
                 if (!Directory.Exists(userDirectoryPath))
                 {
@@ -44,7 +50,7 @@ namespace Enigma.BLL.Services
 
                 var userDataPath = Path.Combine(userDirectoryPath, EnigmaSettings.UserDataFileName);
 
-                _userDataWriter.Write(userDataPath, userData);
+                userDataWriter.Write(userDataPath, userData);
             }
 
             return !isLoginTaken;
@@ -52,21 +58,57 @@ namespace Enigma.BLL.Services
 
         public bool CheckUserData(UserCredentials enteredData)
         {
-            var userDataPath = Path.Combine(EnigmaSettings.MainDirectory, enteredData.UserId.ToString(), EnigmaSettings.UserDataFileName);
+            var isDataValid = false;
 
-            var isDataValid = File.Exists(userDataPath);
+            var userList = userListReader.Read(EnigmaSettings.UserListPath);
 
-            if(isDataValid)
+            if (userList.ContainsValue(enteredData.Login))
             {
-                var userData = _userdataReader.Read(userDataPath);
+                var userId = userList.First((data) => data.Value == enteredData.Login).Key;
+                var userDataPath = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString(), EnigmaSettings.UserDataFileName);
 
-                if (!((userData.Login == enteredData.Login) && (userData.Password == enteredData.Password)))
+                isDataValid = File.Exists(userDataPath);
+
+                if (isDataValid)
                 {
-                    isDataValid = false;
+                    var userData = userDataReader.Read(userDataPath);
+
+                    isDataValid = (userData.Login == enteredData.Login) && (userData.Password == enteredData.Password);
                 }
             }
 
             return isDataValid;
+        }
+
+        public List<User> GetInterlocutors(long userId)
+        {
+            var interlocutorsList = new List<User>();
+
+            var userDirectoryParh = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString());
+
+            foreach (var directoryName in Directory.GetDirectories(userDirectoryParh))
+            {
+                var userList = userListReader.Read(EnigmaSettings.UserListPath);
+
+                if (long.TryParse(directoryName, out long interlocutorId) && userList.ContainsKey(interlocutorId))
+                {
+                    var interlocutor = new User 
+                    { 
+                        Id = interlocutorId, 
+                        Login = userList[interlocutorId] 
+                    };
+
+                    interlocutorsList.Add(interlocutor);
+                }
+            }
+
+            return interlocutorsList;
+        }
+
+        // There will be some proper logic, but later.
+        private long GenerateId(UserCredentials userData)
+        {
+            return 1;
         }
     }
 }
