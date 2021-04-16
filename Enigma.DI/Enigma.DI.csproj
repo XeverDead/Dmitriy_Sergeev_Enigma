@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
@@ -11,8 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Enigma.BLL\Enigma.BLL.csproj" />
-    <ProjectReference Include="..\Enigma.Common\Enigma.Common.csproj" />
-    <ProjectReference Include="..\Enigma.DI\Enigma.DI.csproj" />
+    <ProjectReference Include="..\Enigma.DAL\Enigma.DAL.csproj" />
   </ItemGroup>
 
 </Project>

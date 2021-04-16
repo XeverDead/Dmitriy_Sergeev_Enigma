@@ -4,11 +4,14 @@ using Enigma.UI.Pages.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Reflection;
 
 namespace Enigma.UI.Pages.Implementations
 {
     public class DialogPage : IPage
     {
+        private const string ExitCode = "#e";
+
         private readonly DialogService dialogService;
 
         private readonly User sender;
@@ -21,6 +24,10 @@ namespace Enigma.UI.Pages.Implementations
             this.sender = sender ?? throw new ArgumentNullException(nameof(sender));
             this.receiver = receiver ?? throw new ArgumentNullException(nameof(receiver));
         }
+
+        public Type NextPageType { get; private set; }
+
+        public object[] NextPageArgs { get; private set; }
 
         public void Show()
         {
@@ -54,11 +61,21 @@ namespace Enigma.UI.Pages.Implementations
 
                 var enteredText = Console.ReadLine();
 
-                messageToSend.Text = enteredText;
-                messageToSend.Date = DateTime.Now;
+                if (enteredText == ExitCode)
+                {
+                    exitCodeWritten = true;
+                }
+                else
+                {
+                    messageToSend.Text = enteredText;
+                    messageToSend.Date = DateTime.Now;
 
-                dialogService.MessageService.SendMessage(messageToSend);
+                    dialogService.MessageService.SendMessage(messageToSend);
+                }
             }
+
+            NextPageType = typeof(DialogsPage);
+            NextPageArgs = new object[] { sender };
         }
     }
 }

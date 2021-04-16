@@ -3,9 +3,9 @@ using Enigma.DAL.Readers.Interfaces;
 using System;
 using System.IO;
 
-namespace Enigma.DAL.Readers.Implementations
+namespace Enigma.DAL.Readers.Implementations.FileReaders
 {
-    public class MessageReader : IReader<Message>
+    public class MessageFileReader : IReader<Message>
     {
         public Message Read(string path)
         {

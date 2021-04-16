@@ -52,10 +52,7 @@ namespace Enigma.BLL.Services
 
             var messageDirectory = Path.Combine(EnigmaSettings.MainDirectory, message.SenderId.ToString(), message.ReceiverId.ToString());
 
-            if (!Directory.Exists(messageDirectory))
-            {
-                Directory.CreateDirectory(messageDirectory);
-            }
+            Directory.CreateDirectory(messageDirectory);
 
             var messagePath = Path.Combine(messageDirectory, message.Date.Ticks.ToString() + $".{EnigmaSettings.MessageExtension}");
 

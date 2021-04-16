@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 
-namespace Enigma.DAL.Writers.Implementations
+namespace Enigma.DAL.Writers.Implementations.FileWriters
 {
-    public class UserListWriter : IWriter<KeyValuePair<long, string>>
+    public class UserListFileWriter : IWriter<KeyValuePair<int, string>>
     {
-        public void Write(string path, KeyValuePair<long, string> data)
+        public void Write(string path, KeyValuePair<int, string> data)
         {
             using (var binaryWriter = new BinaryWriter(File.Open(path, FileMode.Append)))
             {
