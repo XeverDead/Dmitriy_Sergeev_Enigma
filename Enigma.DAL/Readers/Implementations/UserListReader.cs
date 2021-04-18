@@ -15,6 +15,7 @@ namespace Enigma.DAL.Readers.Implementations
             {
                 while (true)
                 {
+                    // PeekChar seem not to work in some situations, so I had to pick try catch for this
                     try
                     {
                         var id = binaryReader.ReadInt32();
