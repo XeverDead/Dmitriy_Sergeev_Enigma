@@ -36,6 +36,8 @@ namespace Enigma.UI.Pages.Implementations
         {
             Console.Title = $"Enigma - Dialog between {user.Login} and {interlocutor.Login}";
 
+            Console.BufferWidth = 1000;
+
             Console.Clear();
             Console.WriteLine("To get back to dialogs page enter #b. Press any key to continue");
             Console.ReadKey();

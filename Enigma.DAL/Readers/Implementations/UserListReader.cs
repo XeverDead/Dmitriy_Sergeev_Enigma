@@ -13,13 +13,20 @@ namespace Enigma.DAL.Readers.Implementations
 
             using (var binaryReader = new BinaryReader(File.OpenRead(path)))
             {
-                while (binaryReader.PeekChar() != -1)
+                while (true)
                 {
-                    var id = binaryReader.ReadInt32();
-                    var encrytionKey = binaryReader.ReadInt32();
-                    var login = binaryReader.ReadString();
+                    try
+                    {
+                        var id = binaryReader.ReadInt32();
+                        var encrytionKey = binaryReader.ReadInt32();
+                        var login = binaryReader.ReadString();
 
-                    userList.Add(id ^ encrytionKey, DecryptString(login, encrytionKey));
+                        userList.Add(id ^ encrytionKey, DecryptString(login, encrytionKey));
+                    }
+                    catch (EndOfStreamException) 
+                    {
+                        break;
+                    }
                 }
             }
 
