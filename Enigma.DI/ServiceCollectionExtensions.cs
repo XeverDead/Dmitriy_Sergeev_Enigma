@@ -2,13 +2,13 @@
 using Enigma.BLL.Encryptors.Interfaces;
 using Enigma.BLL.Services;
 using Enigma.Common.Models;
-using Enigma.DAL.Readers.Implementations.FileReaders;
+using Enigma.DAL.Readers.Implementations;
 using Enigma.DAL.Readers.Interfaces;
-using Enigma.DAL.Writers.Implementations.FileWriters;
+using Enigma.DAL.Writers.Implementations;
 using Enigma.DAL.Writers.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Enigma.DI
 {
@@ -16,17 +16,21 @@ namespace Enigma.DI
     {
         public static void AddEnigmaServices(this ServiceCollection services)
         {
-            services.AddSingleton<IWriter<Message>, MessageFileWriter>();
-            services.AddSingleton<IWriter<UserCredentials>, UserDataFileWriter>();
-            services.AddSingleton<IWriter<KeyValuePair<int, string>>, UserListFileWriter>();
+            services.AddSingleton<IWriter<Message>, MessageWriter>();
+            services.AddSingleton<IWriter<UserCredentials>, UserDataWriter>();
+            services.AddSingleton<IWriter<KeyValuePair<int, string>>, UserListWriter>();
+            services.AddSingleton<IWriter<int>, KeyWriter>();
 
-            services.AddSingleton<IReader<Message>, MessageFileReader>();
-            services.AddSingleton<IReader<UserCredentials>, UserDataFileReader>();
-            services.AddSingleton<IReader<Dictionary<int, string>>, UserListFileReader>();
+            services.AddSingleton<IReader<Message>, MessageReader>();
+            services.AddSingleton<IReader<UserCredentials>, UserDataReader>();
+            services.AddSingleton<IReader<Dictionary<int, string>>, UserListReader>();
+            services.AddSingleton<IReader<int>, KeyReader>();
 
             services.AddSingleton<MessageService>();
             services.AddSingleton<DialogService>();
             services.AddSingleton<UserService>();
+
+            services.AddSingleton<FileSystemWatcher>();
 
             services.AddSingleton<IEncryptor, CaesarEncryptor>();
         }

@@ -5,7 +5,6 @@ using Enigma.UI.Pages.Implementations;
 using Enigma.UI.Pages.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
@@ -25,15 +24,15 @@ namespace Enigma.UI
             services.AddEnigmaServices();
             serviceProvider = services.BuildServiceProvider();
 
-            pagesServices = new PagesServices(serviceProvider);
+            pagesServices = new PagesServices();
 
-            currentPage = new RegisterPage(serviceProvider.GetRequiredService<UserService>());
+            currentPage = new LoginPage(serviceProvider.GetRequiredService<UserService>());
 
             Directory.CreateDirectory(EnigmaSettings.MainDirectory);
 
             if (!File.Exists(EnigmaSettings.UserListPath))
             {
-                File.Create(EnigmaSettings.UserListPath);
+                using var writer = new BinaryWriter(File.OpenWrite(EnigmaSettings.UserListPath));
             }
 
             StartApp();

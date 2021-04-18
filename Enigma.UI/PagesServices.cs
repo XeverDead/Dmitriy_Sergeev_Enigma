@@ -1,21 +1,12 @@
 ﻿using Enigma.BLL.Services;
 using Enigma.UI.Pages.Implementations;
-using Enigma.UI.Pages.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Enigma.UI
 {
     public class PagesServices
     {
-        private readonly IServiceProvider serviceProvider;
-
-        public PagesServices(IServiceProvider serviceProvider)
-        {
-            this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        }
-
         public Type[] GetPageServices(Type pageType)
         {
             if (pagesServices.TryGetValue(pageType, out Type[] serviceTypes))
@@ -28,12 +19,14 @@ namespace Enigma.UI
             }
         }
 
-        private Dictionary<Type, Type[]> pagesServices = new Dictionary<Type, Type[]>
+        private readonly Dictionary<Type, Type[]> pagesServices = new Dictionary<Type, Type[]>
         {
             [typeof(DialogPage)] = new Type[] { typeof(DialogService) },
             [typeof(DialogsPage)] = new Type[] { typeof(UserService) },
             [typeof(LoginPage)] = new Type[] { typeof(UserService) },
-            [typeof(RegisterPage)] = new Type[] { typeof(UserService) }
+            [typeof(RegisterPage)] = new Type[] { typeof(UserService) },
+            [typeof(KeyCreationPage)] = new Type[] { typeof(DialogService) },
+            [typeof(UserSearchPage)] = new Type[] { typeof(UserService) }
         };
     }
 }

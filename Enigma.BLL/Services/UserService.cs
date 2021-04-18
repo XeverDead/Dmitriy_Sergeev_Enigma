@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace Enigma.BLL.Services
 {
@@ -39,9 +38,9 @@ namespace Enigma.BLL.Services
             {
                 userId = GenerateId(userData);
 
-                var pair = new KeyValuePair<int, string>(userId, userData.Login);
+                var idLoginPair = new KeyValuePair<int, string>(userId, userData.Login);
 
-                userListWriter.Write(EnigmaSettings.UserListPath, pair);
+                userListWriter.Write(EnigmaSettings.UserListPath, idLoginPair);
 
                 var userDirectoryPath = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString());
 
@@ -81,15 +80,17 @@ namespace Enigma.BLL.Services
             return isDataValid;
         }
 
-        public List<User> GetInterlocutors(long userId)
+        public List<User> GetInterlocutors(int userId)
         {
             var interlocutorsList = new List<User>();
 
-            var userDirectoryParh = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString());
+            var userDirectoryPath = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString());
 
-            foreach (var directoryName in Directory.GetDirectories(userDirectoryParh))
+            var userList = userListReader.Read(EnigmaSettings.UserListPath);
+
+            foreach (var directoryPath in Directory.GetDirectories(userDirectoryPath))
             {
-                var userList = userListReader.Read(EnigmaSettings.UserListPath);
+                var directoryName = directoryPath[(directoryPath.LastIndexOf("\\") + 1)..];
 
                 if (int.TryParse(directoryName, out int interlocutorId) && userList.ContainsKey(interlocutorId))
                 {
@@ -106,12 +107,46 @@ namespace Enigma.BLL.Services
             return interlocutorsList;
         }
 
-        // There will be some proper logic, but later.
+        public List<User> GetPossibleInterlocutorsByLoginPattern(int userId, string loginPattern)
+        {
+            var idLoginPairs = userListReader.Read(EnigmaSettings.UserListPath).Where((pair) => pair.Value.Contains(loginPattern, StringComparison.OrdinalIgnoreCase));
+
+            var interlocutors = GetInterlocutors(userId);
+
+            var users = new List<User>();
+
+            foreach (var idLoginPair in idLoginPairs)
+            {
+                users.Add(new User { Id = idLoginPair.Key, Login = idLoginPair.Value });
+            }
+
+            for (var userIndex = 0; userIndex < users.Count; userIndex++)
+            {
+                for (var interlocutorIndex = 0; interlocutorIndex < interlocutors.Count; interlocutorIndex++)
+                {
+                    if ((users[userIndex].Id == interlocutors[interlocutorIndex].Id) && (users[userIndex].Login == interlocutors[interlocutorIndex].Login))
+                    {
+                        users.RemoveAt(userIndex);
+                        userIndex--;
+                    }
+                }
+            }
+
+            return users;
+        }
+
         private int GenerateId(UserCredentials userData)
         {
-            var random = new Random();
+            var id = 1;
 
-            return random.Next(100000);
+            var users = userListReader.Read(EnigmaSettings.UserListPath);
+
+            if (users.Count > 0)
+            {
+                id = users.Keys.Max() + 1;
+            }
+
+            return id;
         }
     }
 }
