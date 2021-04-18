@@ -2,9 +2,9 @@
 using Enigma.DAL.Readers.Interfaces;
 using System.IO;
 
-namespace Enigma.DAL.Readers.Implementations
+namespace Enigma.DAL.Readers.Implementations.FileReaders
 {
-    public class UserDataReader : IReader<UserCredentials>
+    public class UserDataFileReader : IReader<UserCredentials>
     {
         public UserCredentials Read(string path)
         {

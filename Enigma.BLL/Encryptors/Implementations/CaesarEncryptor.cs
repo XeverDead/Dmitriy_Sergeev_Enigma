@@ -6,21 +6,16 @@ namespace Enigma.BLL.Encryptors.Implementations
 {
     public class CaesarEncryptor : IEncryptor
     {
-        private readonly int _key;
-
-        public CaesarEncryptor(int key)
-        {
-            _key = key;
-        }
+        public int Key { private get; set; }
 
         public string Decrypt(string text)
         {
-            return ModifyMessage(text, (symbol) => (char)(symbol - _key));
+            return ModifyMessage(text, (symbol) => (char)(symbol - Key));
         }
 
         public string Encrypt(string text)
         {
-            return ModifyMessage(text, (symbol) => (char)(symbol + _key));
+            return ModifyMessage(text, (symbol) => (char)(symbol + Key));
         }
 
         private string ModifyMessage(string text, Func<char, char> symbolModificationRule)

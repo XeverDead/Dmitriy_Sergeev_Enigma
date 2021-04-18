@@ -1,4 +1,5 @@
-﻿using Enigma.Common.Models;
+﻿using Enigma.BLL.Encryptors.Interfaces;
+using Enigma.Common.Models;
 using Enigma.Common.Settings;
 using Enigma.DAL.Readers.Interfaces;
 using Enigma.DAL.Writers.Interfaces;
@@ -10,107 +11,61 @@ namespace Enigma.BLL.Services
 {
     public class MessageService
     {
-        private readonly IReader<Message> _messageReader;
-        private readonly IWriter<Message> _messageWriter;
+        private readonly IReader<Message> messageReader;
+        private readonly IWriter<Message> messageWriter;
 
-        private readonly IReader<Dictionary<long, string>> _userListReader;
+        private readonly IReader<Dictionary<long, string>> userListReader;
 
-        public MessageService(IReader<Message> messageReader, IWriter<Message> messageWriter, IReader<Dictionary<long, string>> userListReader)
+        private readonly IEncryptor messageEncryptor;
+
+        public MessageService(IReader<Message> messageReader, 
+            IWriter<Message> messageWriter, 
+            IReader<Dictionary<long, string>> userListReader, 
+            IEncryptor messageEncryptor)
         {
-            _messageReader = messageReader ?? throw new ArgumentNullException(nameof(messageReader));
-            _messageWriter = messageWriter ?? throw new ArgumentNullException(nameof(messageWriter));
-            _userListReader = userListReader ?? throw new ArgumentNullException(nameof(userListReader));
+            this.messageReader = messageReader ?? throw new ArgumentNullException(nameof(messageReader));
+            this.messageWriter = messageWriter ?? throw new ArgumentNullException(nameof(messageWriter));
+            this.userListReader = userListReader ?? throw new ArgumentNullException(nameof(userListReader));
+            this.messageEncryptor = messageEncryptor ?? throw new ArgumentNullException(nameof(messageEncryptor));
         }
 
-        public IEnumerable<Message> GetDialogMessages(long user1Id, long user2Id)
+        public Message ReadMessage(string path)
         {
-            CheckUserIds(user1Id, user2Id);
+            var message = messageReader.Read(path);
 
-            var user1MessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, user1Id.ToString(), user2Id.ToString());
-            var user2MessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, user2Id.ToString(), user1Id.ToString());
+            message.Text = messageEncryptor.Decrypt(message.Text);
 
-            var messages = new List<Message>();
-
-            if (!Directory.Exists(user1MessagesDirectory))
-            {
-                Directory.CreateDirectory(user1MessagesDirectory);
-            }
-
-            if (!Directory.Exists(user2MessagesDirectory))
-            {
-                Directory.CreateDirectory(user2MessagesDirectory);
-            }
-
-            messages.AddRange(GetUserToUserMessages(user1MessagesDirectory, user1Id, user2Id));
-            messages.AddRange(GetUserToUserMessages(user2MessagesDirectory, user2Id, user1Id));
-
-            messages.Sort(new Comparison<Message>(MessagesDateComparer));
-
-            return messages;
+            return message;
         }
 
-        public void WriteMessage(Message message)
+        public void SendMessage(Message message)
         {
-            CheckUserIds(message.SenderId, message.ReceiverId);
+            if (!CheckUserId(message.SenderId))
+            {
+                throw new ArgumentException("There no user with this sender id", nameof(message));
+            }
+
+            if (!CheckUserId(message.ReceiverId))
+            {
+                throw new ArgumentException("There no user with this receiver id", nameof(message));
+            }
 
             var messageDirectory = Path.Combine(EnigmaSettings.MainDirectory, message.SenderId.ToString(), message.ReceiverId.ToString());
 
-            if (!Directory.Exists(messageDirectory))
-            {
-                Directory.CreateDirectory(messageDirectory);
-            }
+            Directory.CreateDirectory(messageDirectory);
 
             var messagePath = Path.Combine(messageDirectory, message.Date.Ticks.ToString() + $".{EnigmaSettings.MessageExtension}");
 
-            _messageWriter.Write(messagePath, message);
+            var encryptedMessage = message.Clone() as Message;
+
+            encryptedMessage.Text = messageEncryptor.Encrypt(encryptedMessage.Text);
+
+            messageWriter.Write(messagePath, encryptedMessage);
         }
 
-        private void CheckUserIds(long user1Id, long user2Id)
+        private bool CheckUserId(long id)
         {
-            if (!_userListReader.Read(EnigmaSettings.UserListPath).ContainsKey(user1Id))
-            {
-                throw new ArgumentException("There is no user with this id", nameof(user1Id));
-            }
-
-            if (!_userListReader.Read(EnigmaSettings.UserListPath).ContainsKey(user2Id))
-            {
-                throw new ArgumentException("There is no user with this id", nameof(user2Id));
-            }
-        }
-
-        private IEnumerable<Message> GetUserToUserMessages(string directory, long senderId, long receiverId)
-        {
-            var messages = new List<Message>();
-
-            var messagePaths = Directory.GetFiles(directory, $"*.{EnigmaSettings.MessageExtension}");
-
-            foreach (var messagePath in messagePaths)
-            {
-                var message = _messageReader.Read(messagePath);
-
-                if ((message.SenderId == senderId) && (message.ReceiverId == receiverId))
-                {
-                    messages.Add(message);
-                }
-            }
-
-            return messages;
-        }
-
-        private int MessagesDateComparer(Message message1, Message message2)
-        {
-            if (message1.Date > message2.Date)
-            {
-                return 1;
-            }
-            else if(message1.Date < message2.Date)
-            {
-                return -1;
-            }
-            else
-            {
-                return 0;
-            }
+            return userListReader.Read(EnigmaSettings.UserListPath).ContainsKey(id);
         }
     }
 }
