@@ -2,14 +2,13 @@
 using Enigma.Common.Models;
 using Enigma.UI.Pages.Interfaces;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Enigma.UI.Pages.Implementations
 {
     public class DialogsPage : IPage
     {
-        private const string ExitCode = "#e";
+        private const string LogOutCode = "#e";
+        private const string NewDialogCode = "#n";
 
         private readonly UserService userService;
 
@@ -27,40 +26,65 @@ namespace Enigma.UI.Pages.Implementations
 
         public void Show()
         {
-            var interlocutors = userService.GetInterlocutors(user.Id);
+            Console.Title = $"Enigma - {user.Login} looking at friend list";
 
-            var userIndex = 1;
+            var interlocutors = userService.GetInterlocutors(user.Id);
 
             var chosenUserIndex = 1;
 
-            var chosenUserIndexStr = string.Empty;
-
             var isUserChosen = false;
+
+            var isErrorOccurred = false;
+            var errorMessage = string.Empty;
 
             do
             {
+                var userIndex = 1;
+
+                var userInput = string.Empty;
+
+                if (isErrorOccurred)
+                {
+                    Console.Clear();
+                    Console.WriteLine($"{errorMessage}. Press any key to continue");
+                    Console.ReadKey();
+                }
+
                 Console.Clear();
 
                 Console.WriteLine("Your interlocutors:");
 
                 foreach (var user in interlocutors)
                 {
-                    Console.WriteLine($"{userIndex}. {user.Login}");
-                    userIndex++;
+                    Console.WriteLine($"{userIndex++}. {user.Login}");
                 }
 
-                Console.WriteLine("\nEnter user number to enter dialog window.");
+                Console.WriteLine("\nEnter user number to enter dialog window (or enter #n to start new dialog, #e to log out)");
 
-                chosenUserIndexStr = Console.ReadLine();
+                userInput = Console.ReadLine();
 
-                if (chosenUserIndexStr == ExitCode)
+                if (userInput == LogOutCode)
                 {
                     NextPageType = typeof(LoginPage);
                     NextPageArgs = new object[0];
                     break;
                 }
+                else if (userInput == NewDialogCode)
+                {
+                    NextPageType = typeof(UserSearchPage);
+                    NextPageArgs = new object[1] { user };
 
-                isUserChosen = int.TryParse(chosenUserIndexStr, out chosenUserIndex) && (chosenUserIndex > 0) && (chosenUserIndex < userIndex);
+                    break;
+                }
+
+                isUserChosen = int.TryParse(userInput, out chosenUserIndex) && (chosenUserIndex > 0) && (chosenUserIndex < userIndex);
+
+                if (!isUserChosen)
+                {
+                    errorMessage = "There is no user with this number";
+                }
+
+                isErrorOccurred = !isUserChosen;
             }
             while (!isUserChosen);
 

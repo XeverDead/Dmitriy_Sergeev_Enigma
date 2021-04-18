@@ -4,13 +4,13 @@ namespace Enigma.Common.Models
 {
     public class Message : ICloneable
     {
-        public long Id { get; set; }
+        public int Id { get; set; }
 
         public string Text { get; set; }
 
-        public long SenderId { get; set; }
+        public int SenderId { get; set; }
 
-        public long ReceiverId { get; set; }
+        public int ReceiverId { get; set; }
 
         public DateTime Date { get; set; }
 

@@ -1,28 +1,31 @@
 ﻿using Enigma.BLL.Services;
 using Enigma.Common.Models;
+using Enigma.Common.Settings;
 using Enigma.UI.Pages.Interfaces;
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
+using System.IO;
 
 namespace Enigma.UI.Pages.Implementations
 {
     public class DialogPage : IPage
     {
-        private const string ExitCode = "#e";
+        private const string ToDialogsCode = "#b";
 
         private readonly DialogService dialogService;
 
-        private readonly User sender;
-        private readonly User receiver;
+        private readonly User user;
+        private readonly User interlocutor;
 
-        public DialogPage(DialogService dialogService, User sender, User receiver)
+        private int unsentMessageLength;
+
+        public DialogPage(DialogService dialogService, User user, User interlocutor)
         {
             this.dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
 
-            this.sender = sender ?? throw new ArgumentNullException(nameof(sender));
-            this.receiver = receiver ?? throw new ArgumentNullException(nameof(receiver));
+            this.user = user ?? throw new ArgumentNullException(nameof(user));
+            this.interlocutor = interlocutor ?? throw new ArgumentNullException(nameof(interlocutor));
+
+            dialogService.NewInterlocutorMessageWritten += WriteInterlocutorMessage;
         }
 
         public Type NextPageType { get; private set; }
@@ -31,51 +34,90 @@ namespace Enigma.UI.Pages.Implementations
 
         public void Show()
         {
-            var messages = dialogService.GetDialogMessages(sender.Id, receiver.Id);
+            Console.Title = $"Enigma - Dialog between {user.Login} and {interlocutor.Login}";
+
+            Console.BufferWidth = 1000;
+
+            Console.Clear();
+            Console.WriteLine("To get back to dialogs page enter #b. Press any key to continue");
+            Console.ReadKey();
+
+            Console.Clear();
+
+            var messages = dialogService.GetDialogMessages(user.Id, interlocutor.Id);
 
             foreach (var message in messages)
             {
-                if (message.SenderId == sender.Id)
+                if (message.SenderId == user.Id)
                 {
-                    Console.Write(sender.Login + ": ");
+                    Console.Write(user.Login + ": ");
                 }
-                else if(message.SenderId == receiver.Id)
+                else if(message.SenderId == interlocutor.Id)
                 {
-                    Console.Write(receiver.Login + ": ");
+                    Console.Write(interlocutor.Login + ": ");
                 }
 
                 Console.WriteLine(message.Text);
             }
 
-            var exitCodeWritten = false;
+            var toDialogsCodeWritten = false;
 
             var messageToSend = new Message
             {
-                SenderId = sender.Id,
-                ReceiverId = receiver.Id,
+                SenderId = user.Id,
+                ReceiverId = interlocutor.Id,
             };
 
-            while (!exitCodeWritten)
+            while (!toDialogsCodeWritten)
             {
-                Console.Write(sender.Login + ": ");
+                Console.Write(user.Login + ": ");
 
                 var enteredText = Console.ReadLine();
 
-                if (enteredText == ExitCode)
+                if (enteredText == ToDialogsCode)
                 {
-                    exitCodeWritten = true;
+                    toDialogsCodeWritten = true;
                 }
                 else
                 {
+                    if (string.IsNullOrWhiteSpace(enteredText))
+                    {
+                        Console.CursorTop--;
+                        ClearLine();
+                        continue;
+                    }
+
+                    if (unsentMessageLength > 0)
+                    {
+                        enteredText = enteredText[unsentMessageLength..];
+                    }
+
                     messageToSend.Text = enteredText;
                     messageToSend.Date = DateTime.Now;
 
-                    dialogService.MessageService.SendMessage(messageToSend);
+                    dialogService.MessageService.SendMessage(messageToSend, dialogService.Key);
                 }
             }
 
             NextPageType = typeof(DialogsPage);
-            NextPageArgs = new object[] { sender };
+            NextPageArgs = new object[] { user };
+        }
+
+        private void WriteInterlocutorMessage(Message obj)
+        {
+            unsentMessageLength = Console.CursorLeft - user.Login.Length - 2;
+
+            ClearLine();
+
+            Console.WriteLine($"{interlocutor.Login}: {obj.Text}");
+            Console.Write($"{user.Login}: ");
+        }
+
+        private void ClearLine()
+        {
+            Console.CursorLeft = 0;
+            Console.Write(new string(' ', Console.BufferWidth - 1));
+            Console.CursorLeft = 0;
         }
     }
 }

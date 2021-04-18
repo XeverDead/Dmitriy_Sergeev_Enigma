@@ -14,13 +14,13 @@ namespace Enigma.BLL.Services
         private readonly IReader<Message> messageReader;
         private readonly IWriter<Message> messageWriter;
 
-        private readonly IReader<Dictionary<long, string>> userListReader;
+        private readonly IReader<Dictionary<int, string>> userListReader;
 
         private readonly IEncryptor messageEncryptor;
 
         public MessageService(IReader<Message> messageReader, 
             IWriter<Message> messageWriter, 
-            IReader<Dictionary<long, string>> userListReader, 
+            IReader<Dictionary<int, string>> userListReader, 
             IEncryptor messageEncryptor)
         {
             this.messageReader = messageReader ?? throw new ArgumentNullException(nameof(messageReader));
@@ -29,16 +29,16 @@ namespace Enigma.BLL.Services
             this.messageEncryptor = messageEncryptor ?? throw new ArgumentNullException(nameof(messageEncryptor));
         }
 
-        public Message ReadMessage(string path)
+        public Message ReadMessage(string path, int key)
         {
             var message = messageReader.Read(path);
 
-            message.Text = messageEncryptor.Decrypt(message.Text);
+            message.Text = messageEncryptor.Decrypt(message.Text, key);
 
             return message;
         }
 
-        public void SendMessage(Message message)
+        public void SendMessage(Message message, int key)
         {
             if (!CheckUserId(message.SenderId))
             {
@@ -58,12 +58,12 @@ namespace Enigma.BLL.Services
 
             var encryptedMessage = message.Clone() as Message;
 
-            encryptedMessage.Text = messageEncryptor.Encrypt(encryptedMessage.Text);
+            encryptedMessage.Text = messageEncryptor.Encrypt(encryptedMessage.Text, key);
 
             messageWriter.Write(messagePath, encryptedMessage);
         }
 
-        private bool CheckUserId(long id)
+        private bool CheckUserId(int id)
         {
             return userListReader.Read(EnigmaSettings.UserListPath).ContainsKey(id);
         }

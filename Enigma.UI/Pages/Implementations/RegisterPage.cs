@@ -7,7 +7,6 @@ namespace Enigma.UI.Pages.Implementations
 {
     public class RegisterPage : IPage
     {
-        private const string ExitCode = "#e";
         private const string LoginCode = "#l";
 
         private readonly UserService userService;
@@ -23,25 +22,33 @@ namespace Enigma.UI.Pages.Implementations
 
         public void Show()
         {
+            Console.Title = $"Enigma - Registration";
+
             var userData = new UserCredentials();
 
             var userId = -1;
 
             var hasUserRegistered = false;
 
+            var isErrorOccurred = false;
+            var errorMessage = string.Empty;
+
             do
             {
+                if (isErrorOccurred)
+                {
+                    Console.Clear();
+                    Console.WriteLine($"{errorMessage}. Press any key to continue\n");
+                    Console.ReadKey();
+                }
+
                 Console.Clear();
 
-                Console.WriteLine("Enter login");
+                Console.WriteLine("Enter login (or enter #l to log in)");
 
                 userData.Login = Console.ReadLine();
 
-                if (userData.Login == ExitCode)
-                {
-                    break;
-                }
-                else if (userData.Password == LoginCode)
+                if (userData.Login == LoginCode)
                 {
                     NextPageType = typeof(LoginPage);
                     NextPageArgs = new object[0];
@@ -50,15 +57,11 @@ namespace Enigma.UI.Pages.Implementations
                 }
 
                 Console.Clear();
-                Console.WriteLine("Enter password");
+                Console.WriteLine("Enter password (or enter #l to log in)");
 
                 userData.Password = Console.ReadLine();
 
-                if (userData.Password == ExitCode)
-                {
-                    break;
-                }
-                else if (userData.Password == LoginCode)
+                if (userData.Password == LoginCode)
                 {
                     NextPageType = typeof(LoginPage);
                     NextPageArgs = new object[0];
@@ -67,6 +70,13 @@ namespace Enigma.UI.Pages.Implementations
                 }
 
                 hasUserRegistered = userService.TryAddUser(userData, out userId);
+
+                if (!hasUserRegistered)
+                {
+                    errorMessage = "User with this login already exists";
+                }
+
+                isErrorOccurred = !hasUserRegistered;
             }
             while (!hasUserRegistered);
 

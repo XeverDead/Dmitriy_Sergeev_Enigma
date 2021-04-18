@@ -1,76 +1,122 @@
-﻿using Enigma.BLL.Encryptors.Interfaces;
-using Enigma.Common.Models;
+﻿using Enigma.Common.Models;
 using Enigma.Common.Settings;
 using Enigma.DAL.Readers.Interfaces;
+using Enigma.DAL.Writers.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace Enigma.BLL.Services
 {
     public class DialogService
     {
-        private readonly IReader<Dictionary<long, string>> userListReader;
+        private readonly IReader<Dictionary<int, string>> userListReader;
+
+        private readonly IReader<int> keyReader;
+        private readonly IWriter<int> keyWriter;
+
+        private readonly FileSystemWatcher systemWatcher;
+
+        public int Key { get; private set; }
 
         public MessageService MessageService { get; }
 
-        public DialogService(MessageService messageService, IReader<Dictionary<long, string>> userListReader)
+        public event Action<Message> NewInterlocutorMessageWritten;
+
+        public DialogService(MessageService messageService, 
+            IReader<Dictionary<int, string>> userListReader,
+            IReader<int> keyReader,
+            IWriter<int> keyWriter,
+            FileSystemWatcher systemWatcher)
         {
             MessageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
             this.userListReader = userListReader ?? throw new ArgumentNullException(nameof(userListReader));
+            this.keyReader = keyReader ?? throw new ArgumentNullException(nameof(keyReader));
+            this.keyWriter = keyWriter ?? throw new ArgumentNullException(nameof(keyWriter));
+            this.systemWatcher = systemWatcher ?? throw new ArgumentNullException(nameof(systemWatcher));
         }
 
-        public IEnumerable<Message> GetDialogMessages(long user1Id, long user2Id)
+        public IEnumerable<Message> GetDialogMessages(int userId, int interlocutorId)
         {
-            if (!CheckUserId(user1Id))
+            if (!CheckUserId(userId))
             {
-                throw new ArgumentException("There no user with this id", nameof(user1Id));
+                throw new ArgumentException("There no user with this id", nameof(userId));
             }
 
-            if (!CheckUserId(user2Id))
+            if (!CheckUserId(interlocutorId))
             {
-                throw new ArgumentException("There no user with this id", nameof(user2Id));
+                throw new ArgumentException("There no user with this id", nameof(interlocutorId));
             }
 
-            var user1MessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, user1Id.ToString(), user2Id.ToString());
-            var user2MessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, user2Id.ToString(), user1Id.ToString());
+            var userMessagesDirectoryPath = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString(), interlocutorId.ToString());
+            var interlocutorMessagesDirectoryPath = Path.Combine(EnigmaSettings.MainDirectory, interlocutorId.ToString(), userId.ToString());
 
             var messages = new List<Message>();
 
-            Directory.CreateDirectory(user1MessagesDirectory);
-            Directory.CreateDirectory(user2MessagesDirectory);
+            var userKeyPath = Path.Combine(userMessagesDirectoryPath, EnigmaSettings.KeyFileName);
+            var interlocutorKeyPath = Path.Combine(interlocutorMessagesDirectoryPath, EnigmaSettings.KeyFileName);
 
-            messages.AddRange(GetUserToUserMessages(user1MessagesDirectory, user1Id, user2Id));
-            messages.AddRange(GetUserToUserMessages(user2MessagesDirectory, user2Id, user1Id));
+            var userKey = keyReader.Read(userKeyPath);
+            var interlocutorKey = keyReader.Read(interlocutorKeyPath);
+
+            if (userKey != interlocutorKey)
+            {
+                throw new ApplicationException("Message keys do not match");
+            }
+            else
+            {
+                Key = userKey;
+            }
+
+            messages.AddRange(GetUserToUserMessages(userMessagesDirectoryPath, userId, interlocutorId));
+
+            if (userId != interlocutorId)
+            {
+                messages.AddRange(GetUserToUserMessages(interlocutorMessagesDirectoryPath, interlocutorId, userId));
+
+                SetSystemWatcher(userId, interlocutorId);
+            }
 
             messages.Sort(new Comparison<Message>(MessagesDateComparer));
 
             return messages;
         }
 
-        public void StartDialog(long user1Id, long user2Id, int key)
+        public void StartDialog(int userId, int interlocutorId, int key)
         {
-            if (!CheckUserId(user1Id))
+            if (!CheckUserId(userId))
             {
-                throw new ArgumentException("There no user with this id", nameof(user1Id));
+                throw new ArgumentException("There no user with this id", nameof(userId));
             }
 
-            if (!CheckUserId(user2Id))
+            if (!CheckUserId(interlocutorId))
             {
-                throw new ArgumentException("There no user with this id", nameof(user2Id));
+                throw new ArgumentException("There no user with this id", nameof(interlocutorId));
             }
 
-            var user1MessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, user1Id.ToString(), user2Id.ToString());
-            var user2MessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, user2Id.ToString(), user1Id.ToString());
+            var userMessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, userId.ToString(), interlocutorId.ToString());
+            var interlocutorMessagesDirectory = Path.Combine(EnigmaSettings.MainDirectory, interlocutorId.ToString(), userId.ToString());
 
-            Directory.CreateDirectory(user1MessagesDirectory);
-            Directory.CreateDirectory(user2MessagesDirectory);
+            Directory.CreateDirectory(userMessagesDirectory);
+            Directory.CreateDirectory(interlocutorMessagesDirectory);
 
-            // Save a key somehow
+            keyWriter.Write(Path.Combine(userMessagesDirectory, EnigmaSettings.KeyFileName), key);
+            keyWriter.Write(Path.Combine(interlocutorMessagesDirectory, EnigmaSettings.KeyFileName), key);
+
+            Key = key;
+
+            var message = new Message
+            {
+                SenderId = userId,
+                ReceiverId = interlocutorId,
+                Text = key.ToString(),
+                Date = DateTime.Now
+            };
+
+            MessageService.SendMessage(message, key);
         }
 
-        private bool CheckUserId(long userId)
+        private bool CheckUserId(int userId)
         {
             return userListReader.Read(EnigmaSettings.UserListPath).ContainsKey(userId);
         }
@@ -83,7 +129,7 @@ namespace Enigma.BLL.Services
 
             foreach (var messagePath in messagePaths)
             {
-                var message = MessageService.ReadMessage(messagePath);
+                var message = MessageService.ReadMessage(messagePath, Key);
 
                 if ((message.SenderId == senderId) && (message.ReceiverId == receiverId)) 
                 {
@@ -92,6 +138,39 @@ namespace Enigma.BLL.Services
             }
 
             return messages;
+        }
+
+        private void OnMessageCreated(object sender, FileSystemEventArgs e)
+        {
+            var isMessageRead = false;
+
+            Message message = null;
+
+            while (!isMessageRead)
+            {
+                try
+                {
+                    message = MessageService.ReadMessage(e.FullPath, Key);
+                }
+                catch(IOException)
+                {
+                    continue;
+                }
+
+                isMessageRead = true;
+            }
+
+            NewInterlocutorMessageWritten?.Invoke(message);
+        }
+
+        private void SetSystemWatcher(int userId, int interlocutorId)
+        {
+            systemWatcher.Path = Path.Combine(EnigmaSettings.MainDirectory, interlocutorId.ToString(), userId.ToString());
+            systemWatcher.Filter = $"*.{EnigmaSettings.MessageExtension}";
+            systemWatcher.NotifyFilter = NotifyFilters.FileName;
+            systemWatcher.EnableRaisingEvents = true;
+
+            systemWatcher.Created += OnMessageCreated;
         }
 
         private int MessagesDateComparer(Message message1, Message message2)
