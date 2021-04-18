@@ -1,7 +1,9 @@
 ﻿using Enigma.BLL.Services;
 using Enigma.Common.Models;
+using Enigma.Common.Settings;
 using Enigma.UI.Pages.Interfaces;
 using System;
+using System.IO;
 
 namespace Enigma.UI.Pages.Implementations
 {
@@ -13,6 +15,8 @@ namespace Enigma.UI.Pages.Implementations
 
         private readonly User user;
         private readonly User interlocutor;
+
+        private int unsentMessageLength;
 
         public DialogPage(DialogService dialogService, User user, User interlocutor)
         {
@@ -64,7 +68,7 @@ namespace Enigma.UI.Pages.Implementations
 
             while (!toDialogsCodeWritten)
             {
-               Console.Write(user.Login + ": ");
+                Console.Write(user.Login + ": ");
 
                 var enteredText = Console.ReadLine();
 
@@ -81,6 +85,11 @@ namespace Enigma.UI.Pages.Implementations
                         continue;
                     }
 
+                    if (unsentMessageLength > 0)
+                    {
+                        enteredText = enteredText[unsentMessageLength..];
+                    }
+
                     messageToSend.Text = enteredText;
                     messageToSend.Date = DateTime.Now;
 
@@ -94,6 +103,8 @@ namespace Enigma.UI.Pages.Implementations
 
         private void WriteInterlocutorMessage(Message obj)
         {
+            unsentMessageLength = Console.CursorLeft - user.Login.Length - 2;
+
             ClearLine();
 
             Console.WriteLine($"{interlocutor.Login}: {obj.Text}");
@@ -102,7 +113,9 @@ namespace Enigma.UI.Pages.Implementations
 
         private void ClearLine()
         {
-            Console.Write(new string('\b', Console.CursorLeft));
+            Console.CursorLeft = 0;
+            Console.Write(new string(' ', Console.BufferWidth - 1));
+            Console.CursorLeft = 0;
         }
     }
 }
